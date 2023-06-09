@@ -225,7 +225,7 @@ impl FullTextDocument {
         while low < high {
             let mid = (low + high).div_floor(2);
             if offset
-                > *self
+                >= *self
                     .line_offsets
                     .get(mid as usize)
                     .expect("Unknown mid value")
@@ -236,7 +236,7 @@ impl FullTextDocument {
             }
         }
 
-        let line = low - 1;
+        let line = low.saturating_sub(1);
 
         Position {
             line,
@@ -291,10 +291,28 @@ mod tests {
         let text_document = full_text_document();
 
         let offset = text_document.offset_at(Position {
+            line: 0,
+            character: 0,
+        });
+        assert_eq!(offset, 0);
+
+        let offset = text_document.offset_at(Position {
+            line: 1,
+            character: 0,
+        });
+        assert_eq!(offset, 3);
+
+        let offset = text_document.offset_at(Position {
             line: 1,
             character: 1,
         });
         assert_eq!(offset, 4);
+
+        let offset = text_document.offset_at(Position {
+            line: 2,
+            character: 0,
+        });
+        assert_eq!(offset, 7);
 
         let offset = text_document.offset_at(Position {
             line: 2,
@@ -340,8 +358,38 @@ mod tests {
     }
 
     #[test]
+    fn test_offset_from_position() {
+        let text_document = full_text_document();
+
+        assert_eq!(0, text_document.offset_at(text_document.position_at(0)));
+        assert_eq!(3, text_document.offset_at(text_document.position_at(3)));
+        assert_eq!(4, text_document.offset_at(text_document.position_at(4)));
+        assert_eq!(7, text_document.offset_at(text_document.position_at(7)));
+        assert_eq!(10, text_document.offset_at(text_document.position_at(10)));
+        assert_eq!(15, text_document.offset_at(text_document.position_at(15)));
+    }
+
+    #[test]
     fn test_position_at() {
         let text_document = full_text_document();
+
+        let position = text_document.position_at(0);
+        assert_eq!(
+            position,
+            Position {
+                line: 0,
+                character: 0
+            }
+        );
+
+        let position = text_document.position_at(3);
+        assert_eq!(
+            position,
+            Position {
+                line: 1,
+                character: 0
+            }
+        );
 
         let position = text_document.position_at(5);
         assert_eq!(
@@ -349,6 +397,15 @@ mod tests {
             Position {
                 line: 1,
                 character: 2
+            }
+        );
+
+        let position = text_document.position_at(7);
+        assert_eq!(
+            position,
+            Position {
+                line: 2,
+                character: 0
             }
         );
 
@@ -369,6 +426,16 @@ mod tests {
                 character: 1,
             }
         );
+
+        let position = text_document.position_at(18);
+        assert_eq!(
+            position,
+            Position {
+                line: 4,
+                character: 0
+            }
+        );
+
     }
 
     /// basic multilingual plane
@@ -439,6 +506,54 @@ mod tests {
                 character: 3,
             }
         );
+    }
+
+    #[test]
+    fn test_position_from_offset() {
+        let text_document = full_text_document();
+
+        let position = Position {
+            line: 0,
+            character: 0,
+        };
+        assert_eq!(position, text_document.position_at(text_document.offset_at(position)));
+
+        let position = Position {
+            line: 1,
+            character: 0,
+        };
+        assert_eq!(position, text_document.position_at(text_document.offset_at(position)));
+
+        let position = Position {
+            line: 1,
+            character: 2,
+        };
+        assert_eq!(position, text_document.position_at(text_document.offset_at(position)));
+
+        let position = Position {
+            line: 2,
+            character: 0,
+        };
+        assert_eq!(position, text_document.position_at(text_document.offset_at(position)));
+
+        let position = Position {
+            line: 2,
+            character: 4,
+        };
+        assert_eq!(position, text_document.position_at(text_document.offset_at(position)));
+
+        let position = Position {
+            line: 3,
+            character: 1,
+        };
+        assert_eq!(position, text_document.position_at(text_document.offset_at(position)));
+
+        let position = Position {
+            line: 4,
+            character: 0,
+        };
+        assert_eq!(position, text_document.position_at(text_document.offset_at(position)));
+
     }
 
     #[test]
